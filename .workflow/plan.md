@@ -55,7 +55,7 @@ concrete values belong in maintainer settings.
 
 ## Windows remote installer encoding correction (2026-11-04)
 
-State: IMPLEMENTING
+State: DONE
 Before: 9a17925; clean worktree; feature/windows-installer-encoding; risk L1.
 Impact: HTTP response text → ScriptBlock.Create → installer parameter block.
 An encoded leading BOM can be treated as content before #Requires/attributes.
@@ -63,6 +63,8 @@ An encoded leading BOM can be treated as content before #Requires/attributes.
 - [x] Remove the file BOM and keep the script ASCII, with Unicode regex escapes.
 - [x] Preserve the user's original ScriptBlock.Create remote invocation.
 - [x] Preserve installer parameters and deployment behavior.
-- [ ] Publish the fix and update the parent submodule reference.
+- [x] Publish the fix and update the parent submodule reference.
 
-No tests or deployment startup are performed, following the user's preference.
+Windows PowerShell 5.1.26100.1301 accepts both the local UTF-8-decoded payload
+and the published original URL with ScriptBlock.Create. The payload was parsed
+only; no installer execution, tests or deployment startup were performed.
