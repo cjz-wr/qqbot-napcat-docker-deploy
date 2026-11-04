@@ -52,3 +52,17 @@ depending on build-input authentication. No release was created or workflow
 dispatched. The Git submodule registration remains local to its feature branch.
 Public documentation and workflow defaults use generic build-input variables;
 concrete values belong in maintainer settings.
+
+## Windows remote installer encoding correction (2026-11-04)
+
+State: IMPLEMENTING
+Before: 9a17925; clean worktree; feature/windows-installer-encoding; risk L1.
+Impact: HTTP response text → ScriptBlock.Create → installer parameter block.
+An encoded leading BOM can be treated as content before #Requires/attributes.
+
+- [x] Remove the file BOM and keep the script ASCII, with Unicode regex escapes.
+- [x] Preserve the user's original ScriptBlock.Create remote invocation.
+- [x] Preserve installer parameters and deployment behavior.
+- [ ] Publish the fix and update the parent submodule reference.
+
+No tests or deployment startup are performed, following the user's preference.

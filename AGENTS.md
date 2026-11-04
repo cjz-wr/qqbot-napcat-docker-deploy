@@ -5,6 +5,7 @@
 - Never commit runtime data, `.env`, credentials, image archives, or a source checkout.
 - Use Compose V2 and preserve existing volumes and `.env` when installing or updating.
 - Maintain equivalent Windows PowerShell 5.1 and Bash 3.2+ installation behavior.
+- Keep install.ps1 ASCII without a BOM; use Unicode escapes for non-ASCII regular expressions. Preserve the documented ScriptBlock.Create invocation.
 - Keep NapCat initialization dependencies and saved-account quick login intact.
 - Publish images only from a release or an explicit workflow dispatch, never from pull requests.
 - Use Conventional Commits and feature branches for future changes.

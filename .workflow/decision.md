@@ -15,3 +15,10 @@ install-directory changes do not silently choose new named volumes.
 Registry metadata confirmed that the existing public `1.1.10` image is AMD64
 only. Compose therefore explicitly defaults the backend to `linux/amd64`;
 native ARM64 can be selected after publishing a multi-platform version.
+
+## PowerShell remote text encoding
+
+2026-11-04: Keep the installer ASCII without a BOM, using regex Unicode escapes
+for localized log labels. Preserve the original ScriptBlock.Create invocation;
+the downloaded script must parse without caller-side workarounds. File-based
+PowerShell 5.1 loading also remains independent of the system ANSI code page.

@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 [CmdletBinding()]
 param(
     [string]$InstallDir = (Join-Path $env:USERPROFILE 'qqbot-napcat'),
@@ -101,6 +101,6 @@ Write-Host "Bot console: $botUrl"
 Write-Host "NapCat login: $napcatUrl/webui"
 Write-Host 'Login details may take a moment to appear; run docker compose logs bot napcat again if needed.'
 & docker @composeArgs logs --no-color --tail=80 bot napcat |
-    Select-String -Pattern 'WebUi Token:|WebUi User Panel Url:|Web 控制台初始口令:'
+    Select-String -Pattern 'WebUi Token:|WebUi User Panel Url:|Web \u63a7\u5236\u53f0\u521d\u59cb\u53e3\u4ee4:'
 Write-Host "Manage this deployment from: $InstallDir"
 if (-not $NoOpen -and $napcatUrl) { Start-Process -FilePath "$napcatUrl/webui" }

@@ -39,6 +39,8 @@ Linux 当前用户需要 Docker 访问权限；支持 x86_64 / ARM64 的前提�
 -InstallDir 'D:\qqbot' -NoOpen
 ```
 
+脚本采用无 BOM 的 ASCII 编码，兼容 Windows PowerShell 5.1 的远程脚本解析。
+
 **Linux / macOS / NAS：**
 
 ```bash
