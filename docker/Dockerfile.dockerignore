@@ -1,0 +1,18 @@
+# Paths are relative to the backend source checkout used as build context.
+**
+!requirements.txt
+!app/
+!app/**
+!scripts/
+!scripts/*.py
+!plugins/
+!plugins/**
+**/__pycache__/
+**/*.py[cod]
+**/.env
+**/.env.*
+**/*.db
+**/*.db-*
+**/*.key
+**/*.pem
+**/.git/

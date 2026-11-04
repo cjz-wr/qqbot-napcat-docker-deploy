@@ -1,0 +1,84 @@
+name: ${COMPOSE_PROJECT_NAME:-qqbot-napcat}
+
+services:
+  init:
+    image: ${BOT_IMAGE:-cjzwr/qqbot-napcat:1.1.10}
+    platform: ${BOT_PLATFORM:-linux/amd64}
+    user: "0:0"
+    entrypoint: ["python", "scripts/init_docker.py"]
+    command: []
+    restart: "no"
+    network_mode: none
+    healthcheck:
+      disable: true
+    volumes:
+      - bot-data:/app/data
+      - napcat-config:/napcat-config
+
+  napcat:
+    image: ${NAPCAT_IMAGE:-mlikiowa/napcat-docker:latest}
+    restart: unless-stopped
+    entrypoint:
+      - bash
+      - -ec
+      - |
+        if [ -z "$${ACCOUNT:-}" ]; then
+          if ! ACCOUNT="$$(jq -r '.napcat.login_qq // "" | tostring' /qqbot-data/config.json)"; then
+            echo "Cannot read the saved NapCat login account." >&2
+            exit 1
+          fi
+        fi
+        if [ -n "$$ACCOUNT" ] && ! [[ "$$ACCOUNT" =~ ^[0-9]{5,12}$$ ]]; then
+          echo "NapCat login account must contain 5-12 digits." >&2
+          exit 1
+        fi
+        export ACCOUNT
+        exec bash /app/entrypoint.sh
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      NAPCAT_UID: "10001"
+      NAPCAT_GID: "10001"
+      ACCOUNT: ${NAPCAT_ACCOUNT:-}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${NAPCAT_WEBUI_PORT:-6099}:6099"
+    expose:
+      - "3000"
+    volumes:
+      - bot-data:/qqbot-data:ro
+      - napcat-config:/app/napcat/config
+      - napcat-qq:/app/.config/QQ
+      - napcat-plugins:/app/napcat/plugins
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    stop_grace_period: 30s
+
+  bot:
+    image: ${BOT_IMAGE:-cjzwr/qqbot-napcat:1.1.10}
+    platform: ${BOT_PLATFORM:-linux/amd64}
+    init: true
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${BOT_PORT:-8881}:8881"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - bot-data:/app/data
+      - bot-logs:/app/logs
+      - bot-mface:/app/mface
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      napcat:
+        condition: service_started
+    stop_grace_period: 30s
+
+volumes:
+  bot-data:
+  bot-logs:
+  bot-mface:
+  napcat-config:
+  napcat-qq:
+  napcat-plugins:

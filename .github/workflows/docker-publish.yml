@@ -1,0 +1,125 @@
+name: Publish Docker image
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Image version (must match backend __version__; optional leading v)
+        required: true
+        default: "1.1.10"
+        type: string
+      source_ref:
+        description: Backend branch, tag or commit (empty uses SOURCE_REF/main)
+        required: false
+        type: string
+      publish_latest:
+        description: Also update the latest tag
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ github.event.release.tag_name || inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out deployment files
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Check publishing credentials
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          SOURCE_REPOSITORY: ${{ vars.SOURCE_REPOSITORY }}
+        run: |
+          if [ -z "$DOCKER_USERNAME" ] || [ -z "$DOCKER_PASSWORD" ]; then
+            echo "Configure DOCKER_USERNAME and DOCKER_PASSWORD (Docker Hub access token) in repository secrets."
+            exit 1
+          fi
+          if [ -z "$SOURCE_REPOSITORY" ]; then
+            echo "Configure the SOURCE_REPOSITORY repository variable (owner/repository)."
+            exit 1
+          fi
+
+      - name: Check out backend source
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ vars.SOURCE_REPOSITORY }}
+          ref: ${{ inputs.source_ref || vars.SOURCE_REF || 'main' }}
+          token: ${{ secrets.SOURCE_REPO_TOKEN || github.token }}
+          path: source
+          persist-credentials: false
+
+      - name: Prepare version and image tags
+        id: image
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          MANUAL_VERSION: ${{ inputs.version }}
+          IMAGE_NAME: ${{ vars.DOCKER_IMAGE || 'cjzwr/qqbot-napcat' }}
+          STABLE_RELEASE: ${{ github.event_name == 'release' && !github.event.release.prerelease }}
+          PUBLISH_LATEST: ${{ inputs.publish_latest }}
+        run: |
+          python3 - <<'PY'
+          import ast
+          import os
+          from pathlib import Path
+          import re
+
+          version = os.environ.get("RELEASE_TAG") or os.environ.get("MANUAL_VERSION", "")
+          version = version.removeprefix("v")
+          if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?", version):
+              raise SystemExit("Use a version such as 1.1.10 or v1.1.10.")
+          tree = ast.parse(Path("source/app/__init__.py").read_text(encoding="utf-8"))
+          backend_version = next(
+              (ast.literal_eval(node.value) for node in tree.body
+               if isinstance(node, ast.Assign)
+               and any(isinstance(t, ast.Name) and t.id == "__version__" for t in node.targets)),
+              None,
+          )
+          if backend_version != version:
+              raise SystemExit("Release version does not match the checked-out backend __version__.")
+          image = os.environ["IMAGE_NAME"]
+          if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*/[a-z0-9][a-z0-9._-]*", image):
+              raise SystemExit("DOCKER_IMAGE must be a Docker Hub namespace/repository without a tag.")
+          tags = [f"{image}:{version}"]
+          if os.environ.get("STABLE_RELEASE") == "true" or os.environ.get("PUBLISH_LATEST") == "true":
+              tags.append(f"{image}:latest")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("tags<<IMAGE_TAGS\n" + "\n".join(tags) + "\nIMAGE_TAGS\n")
+          PY
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push AMD64 and ARM64
+        uses: docker/build-push-action@v7
+        with:
+          context: ./source
+          file: ./docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.image.outputs.tags }}
+          build-args: |
+            PIP_USE_DEPRECATED=${{ vars.PIP_USE_DEPRECATED }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
